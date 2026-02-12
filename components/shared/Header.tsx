@@ -16,11 +16,9 @@ const Header = () => {
           />
         </Link>
 
-        <SignedIn>
-          <nav className="md:flex-between hidden w-full max-w-xs">
-            <NavItems />
-          </nav>
-        </SignedIn>
+        <nav className="md:flex-between hidden w-full max-w-xs">
+          <NavItems />
+        </nav>
 
         <div className="flex w-32 justify-end gap-3">
           <SignedIn>
@@ -28,8 +26,8 @@ const Header = () => {
             <MobileNav />
           </SignedIn>
           <SignedOut>
-            <Button asChild className="rounded-full" size="lg">
-              <Link href="/sign-in">
+              <Button asChild className="rounded-full" size="lg">
+              <Link href="/login">
                 Login
               </Link>
             </Button>

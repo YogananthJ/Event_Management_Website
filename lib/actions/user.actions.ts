@@ -14,7 +14,14 @@ export async function createUser(user: CreateUserParams) {
   try {
     await connectToDatabase()
 
-    const newUser = await User.create(user)
+    // If the signing email matches organizer rule, mark as admin
+    // (emails containing '.host@' are accepted as organizers)
+    const userData: any = { ...user }
+    if (user.email && user.email.includes('.host@')) {
+      userData.role = 'admin'
+    }
+
+    const newUser = await User.create(userData)
     return JSON.parse(JSON.stringify(newUser))
   } catch (error) {
     handleError(error)

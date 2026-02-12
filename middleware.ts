@@ -4,6 +4,10 @@ export default authMiddleware({
   publicRoutes: [
     '/',
     '/events/:id',
+    '/login',
+    '/sign-in',
+    '/sign-up',
+    '/api/auth/validate-admin',
     '/api/webhook/clerk',
     '/api/webhook/stripe',
     '/api/uploadthing'

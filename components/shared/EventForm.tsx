@@ -19,7 +19,7 @@ import { useUploadThing } from '@/lib/uploadthing'
 import "react-datepicker/dist/react-datepicker.css";
 import { Checkbox } from "../ui/checkbox"
 import { useRouter } from "next/navigation"
-import { createEvent, updateEvent } from "@/lib/actions/event.actions"
+import { updateEvent } from "@/lib/actions/event.actions"
 import { IEvent } from "@/lib/database/models/event.model"
 
 
@@ -32,6 +32,9 @@ type EventFormProps = {
 
 const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
   const [files, setFiles] = useState<File[]>([])
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null)
+  const [showCodeModal, setShowCodeModal] = useState(false)
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null)
   const initialValues = event && type === 'Update' 
     ? { 
       ...event, 
@@ -61,20 +64,44 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
       uploadedImageUrl = uploadedImages[0].url
     }
 
-    if(type === 'Create') {
+    if (type === 'Create') {
+      console.log('EventForm onSubmit (Create) - values:', values)
       try {
-        const newEvent = await createEvent({
-          event: { ...values, imageUrl: uploadedImageUrl },
-          userId,
-          path: '/profile'
+        const payload = { ...values, imageUrl: uploadedImageUrl }
+
+        const res = await fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
         })
 
-        if(newEvent) {
-          form.reset();
-          router.push(`/events/${newEvent._id}`)
+        let body: any = null
+        try { body = await res.json() } catch (e) { console.error('Invalid JSON response', e) }
+
+        if (!res.ok) {
+          console.error('Create event failed', res.status, body)
+          alert(`Create failed: ${body?.message || res.status}`)
+          return
+        }
+
+        const newEvent = body?.data
+        if (newEvent) {
+          form.reset()
+          if (body.code) {
+            setGeneratedCode(body.code)
+            setCreatedEventId(newEvent._id)
+            setShowCodeModal(true)
+          } else {
+            router.push(`/events/${newEvent._id}`)
+          }
+        } else {
+          console.error('Create event: no event returned', body)
+          alert('Create failed: no event returned')
         }
       } catch (error) {
-        console.log(error);
+        console.error('Create event error', error)
+        alert('Create failed: ' + (error as any)?.message || String(error))
       }
     }
 
@@ -317,6 +344,30 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
             />
         </div>
 
+        <div className="flex flex-col gap-5 md:flex-row">
+          <FormField
+            control={form.control}
+            name="isPublic"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Visibility</FormLabel>
+                <FormControl>
+                  <select
+                    value={field.value ? 'public' : 'private'}
+                    onChange={(e) => field.onChange(e.target.value === 'public')}
+                    className="h-[54px] w-full rounded-full bg-grey-50 px-4"
+                  >
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                  </select>
+                </FormControl>
+                <FormDescription>Public events appear in Explore and generate a shareable URL.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
 
         <Button 
           type="submit"
@@ -328,6 +379,28 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
             'Submitting...'
           ): `${type} Event `}</Button>
       </form>
+      {showCodeModal && generatedCode ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded bg-white p-6">
+            <h3 className="h4 mb-4">Event Created</h3>
+            <p className="mb-4">Share this unique event code with attendees or keep for your records:</p>
+            <div className="flex items-center justify-between rounded border px-3 py-2">
+              <span className="font-mono">{generatedCode}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedCode)
+                }}
+                className="ml-3 rounded bg-primary-500 px-3 py-1 text-white"
+              >Copy</button>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => { setShowCodeModal(false); router.push('/profile') }} className="rounded border px-3 py-1">Go to Profile</button>
+              <button onClick={() => { setShowCodeModal(false); if (createdEventId) router.push(`/events/${createdEventId}`) }} className="rounded bg-primary-500 px-3 py-1 text-white">View Event</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Form>
   )
 }
